@@ -9,7 +9,7 @@ import { draw_stick_position, CIRCULARITY_DATA_SIZE } from './stick-renderer.js'
 import { ds5_finetune, isFinetuneVisible, finetune_handle_controller_input } from './modals/finetune-modal.js';
 import { calibrate_stick_centers, auto_calibrate_stick_centers } from './modals/calib-center-modal.js';
 import { calibrate_range } from './modals/calib-range-modal.js';
-import { 
+import {
   show_quick_test_modal,
   isQuickTestVisible,
   quicktest_handle_controller_input
@@ -24,7 +24,6 @@ const app = {
   shownRangeCalibrationWarning: false,
 
   // Language and UI state
-  lang_orig_text: {},
   lang_orig_text: {},
   lang_cur: {},
   lang_disabled: true,
@@ -63,7 +62,7 @@ function gboot() {
         if (event.reason.message) {
           errorMessage = `<strong>Error:</strong> ${event.reason.message}`;
         } else if (typeof event.reason === 'string') {
-          errorMessage = `<strong>Error:</strong> ${event.reason}</strong>`;
+          errorMessage = `<strong>Error:</strong> ${event.reason}`;
         }
 
         // Collect all stack traces (main error and causes) for a single expandable section
@@ -114,7 +113,7 @@ function gboot() {
     $("input[name='displayMode']").on('change', on_stick_mode_change);
 
     // Setup edge modal "Don't show again" checkbox
-    $('#edgeModalDontShowAgain').on('change', function() {
+    $('#edgeModalDontShowAgain').on('change', function () {
       localStorage.setItem('edgeModalDontShowAgain', this.checked.toString());
     });
 
@@ -161,7 +160,7 @@ function startGamepadConnectListener() {
 
       for (const pad of pads) {
         if (!pad) continue;
-        // Standard mapping: index 0 is A / Cross / Bottom button
+        // Standard mapping: index 0 is A / Cross / bottom face button
         const btn = pad.buttons && pad.buttons[0];
         if (btn && btn.pressed) {
           xPressedNow = true;
@@ -293,7 +292,7 @@ async function connect() {
     const hasGamepadUsage = (d) =>
       Array.isArray(d.collections) &&
       d.collections.some(c =>
-        c.usagePage === 0x01 && (c.usage === 0x05 || c.usage === 0x04)
+        c.usagePage === 0x01 && (c.usage === 0x05 || c.usage === 0x04) // Game Pad / Joystick
       );
 
     const filterToGamepads = (list) =>
@@ -344,8 +343,7 @@ async function connect() {
   }
 }
 
-
-async function continue_connection({data, device}) {
+async function continue_connection({ data, device }) {
   try {
     if (!controller || controller.isConnected()) {
       device.oninputreport = null;  // this function is called repeatedly if not cleared
@@ -354,7 +352,7 @@ async function continue_connection({data, device}) {
 
     // Detect if the controller is connected via USB
     const reportLen = data.byteLength;
-    if(reportLen != 63) {
+    if (reportLen != 63) {
       // throw new Error(l("Please connect the device using a USB cable."));
       infoAlert(l("The device is connected via Bluetooth. Disconnect and reconnect using a USB cable instead."));
       await disconnect();
@@ -386,15 +384,15 @@ async function continue_connection({data, device}) {
         await controllerInstance.initializeCurrentOutputState();
       }
     } catch (error) {
-      const contextMessage = device 
+      const contextMessage = device
         ? `${l("Connected invalid device")}: ${dec2hex(device.vendorId)}:${dec2hex(device.productId)}`
         : l("Failed to connect to device");
       throw new Error(contextMessage, { cause: error });
     }
 
-    if(!info?.ok) {
+    if (!info?.ok) {
       // Not connected/failed to fetch info
-      if(info) console.error(JSON.stringify(info, null, 2));
+      if (info) console.error(JSON.stringify(info, null, 2));
       throw new Error(`${l("Connected invalid device")}: ${l("Error")}  1`, { cause: info?.error });
     }
 
@@ -407,7 +405,7 @@ async function continue_connection({data, device}) {
     device.oninputreport = controller.getInputHandler();
 
     const deviceName = ControllerFactory.getDeviceName(device.productId);
-    $("#devname").text(deviceName + " (" + dec2hex(device.vendorId) + ":" + dec2hex(device.productId) + ")");
+    $("#devname").text(deviceName + " (" + dec2hex(device.vendorId) + ":" + dec2hex(device.productId) + ")`);
 
     $("#offlinebar").hide();
     $("#onlinebar").show();
@@ -422,10 +420,10 @@ async function continue_connection({data, device}) {
     const model = controllerInstance.getModel();
 
     const numOfSticks = controllerInstance.getNumberOfSticks();
-    if(numOfSticks == 2) {
+    if (numOfSticks == 2) {
       $("#stick-item-rx").show();
       $("#stick-item-ry").show();
-    } else if(numOfSticks == 1) {
+    } else if (numOfSticks == 1) {
       $("#stick-item-rx").hide();
       $("#stick-item-ry").hide();
     } else {
@@ -458,7 +456,7 @@ async function continue_connection({data, device}) {
     if (typeof info.disable_bits === 'number' && info.disable_bits) {
       app.disable_btn |= info.disable_bits;
     }
-    if(app.disable_btn != 0) update_disable_btn();
+    if (app.disable_btn != 0) update_disable_btn();
 
     // DS4 rare notice
     if (model == "DS4" && info?.rare) {
@@ -466,14 +464,14 @@ async function continue_connection({data, device}) {
     }
 
     // Edge onboarding modal
-    if(model == "DS5_Edge") {
+    if (model == "DS5_Edge") {
       show_edge_modal();
     }
 
-    if(model == "VR2") {
-      show_popup(l("<p>Support for PS VR2 controllers is <b>minimal and highly experimental</b>.</p><p>I currently don't own these controllers, so I cannot verify the calibration process myself.</p><p>If you'd like to help improve full support, you can contribute with a donation or even send the controllers for testing.</p><p>Feel free to contact me on Discord (the_al) or by email at ds4@the.al .</p><br><p>Thank you for your support!</p>"), true)
+    if (model == "VR2") {
+      show_popup(l("<p>Support for PS VR2 controllers is <b>minimal and highly experimental</b>.</p><p>I currently don't own these controllers, so I cannot verify the calibration process myself.</p><p>If you'd like to help improve full support, you can contribute with a donation or even send the controllers for testing.</p><p>Feel free to contact me on Discord (the_al) or by email at ds4@the.al .</p><br><p>Thank you for your support!</p>"), true);
     }
-  } catch(err) {
+  } catch (err) {
     await disconnect();
     throw err;
   } finally {
@@ -484,7 +482,7 @@ async function continue_connection({data, device}) {
 
 async function disconnect() {
   la("disconnect");
-  if(!controller?.isConnected()) {
+  if (!controller?.isConnected()) {
     controller = null;
     return;
   }
@@ -509,12 +507,12 @@ function disconnectSync() {
 
 async function handleDisconnectedDevice(e) {
   la("disconnected");
-  console.log("Disconnected: " + e.device.productName)
+  console.log("Disconnected: " + e.device.productName);
   await disconnect();
 }
 
 function render_nvstatus_to_dom(nv) {
-  if(!nv?.status) {
+  if (!nv?.status) {
     throw new Error("Invalid NVS status data", { cause: nv?.error });
   }
 
@@ -541,20 +539,19 @@ function render_nvstatus_to_dom(nv) {
 }
 
 async function refresh_nvstatus() {
-  if (!controller.isConnected()) {
+  if (!controller || !controller.isConnected()) {
     return null;
   }
-
   return await controller.queryNvStatus();
 }
 
 function set_edge_progress(score) {
-  $("#dsedge-progress").css({ "width": score + "%" })
+  $("#dsedge-progress").css({ "width": score + "%" });
 }
 
 function show_welcome_modal() {
   const already_accepted = readCookie("welcome_accepted");
-  if(already_accepted == "1")
+  if (already_accepted == "1")
     return;
 
   bootstrap.Modal.getOrCreateInstance('#welcomeModal').show();
@@ -616,16 +613,16 @@ async function init_svg_controller(model) {
 }
 
 /**
-* Collects circularity data for both analog sticks during testing mode.
-* This function tracks the maximum distance reached at each angular position
-* around the stick's circular range, creating a polar coordinate map of
-* stick movement capabilities.
-*/
+ * Collects circularity data for both analog sticks during testing mode.
+ * This function tracks the maximum distance reached at each angular position
+ * around the stick's circular range, creating a polar coordinate map of
+ * stick movement capabilities.
+ */
 function collectCircularityData(stickStates, leftData, rightData) {
-  const { left, right  } = stickStates || {};
+  const { left, right } = stickStates || {};
   const MAX_N = CIRCULARITY_DATA_SIZE;
 
-  for(const [stick, data] of [[left, leftData], [right, rightData]]) {
+  for (const [stick, data] of [[left, leftData], [right, rightData]]) {
     if (!stick) return; // Skip if no stick changed position
 
     const { x, y } = stick;
@@ -652,7 +649,7 @@ function reset_circularity_mode() {
 }
 
 function refresh_stick_pos() {
-  if(!controller) return;
+  if (!controller) return;
 
   const hasSingleStick = (controller.currentController?.getNumberOfSticks() == 1);
 
@@ -675,9 +672,9 @@ function refresh_stick_pos() {
     enable_zoom_center,
   });
 
-  if(!hasSingleStick) {
+  if (!hasSingleStick) {
     // Draw right stick
-    draw_stick_position(ctx, w-hb, yb, sz, prx, pry, {
+    draw_stick_position(ctx, w - hb, yb, sz, prx, pry, {
       circularity_data: enable_circ_test ? rr_data : null,
       enable_zoom_center,
     });
@@ -686,14 +683,14 @@ function refresh_stick_pos() {
   const precision = enable_zoom_center ? 3 : 2;
   $("#lx-lbl").text(float_to_str(plx, precision));
   $("#ly-lbl").text(float_to_str(ply, precision));
-  if(!hasSingleStick) {
+  if (!hasSingleStick) {
     $("#rx-lbl").text(float_to_str(prx, precision));
     $("#ry-lbl").text(float_to_str(pry, precision));
   }
 
   // Move L3 and R3 SVG elements according to stick position
   try {
-    switch(controller.getModel()) {
+    switch (controller.getModel()) {
       case "DS4":
         // These values are tuned for the SVG's coordinate system and visual effect
         const ds4_max_stick_offset = 25;
@@ -762,7 +759,7 @@ const on_stick_mode_change = () => resetStickDiagrams();
 
 const throttled_refresh_sticks = (() => {
   let delay = null;
-  return function(changes) {
+  return function (changes) {
     if (!changes.sticks) return;
     if (delay) return;
 
@@ -776,8 +773,8 @@ const throttled_refresh_sticks = (() => {
 
 const update_stick_graphics = (changes) => throttled_refresh_sticks(changes);
 
-function update_battery_status({/* bat_capacity, cable_connected, is_charging, is_error, */ bat_txt, changed}) {
-  if(changed) {
+function update_battery_status({ /* bat_capacity, cable_connected, is_charging, is_error, */ bat_txt, changed }) {
+  if (changed) {
     $("#d-bat").html(bat_txt);
   }
 }
@@ -848,7 +845,7 @@ let trackpadBbox = undefined;
 
 function update_touchpad_circles(points) {
   const hasActivePointsNow = points.some(pt => pt.active);
-  if(!hasActivePointsNow && !hasActiveTouchPoints) return;
+  if (!hasActivePointsNow && !hasActiveTouchPoints) return;
 
   // Find the Trackpad_infill group in the SVG
   const svg = document.getElementById('controller-svg');
@@ -867,8 +864,8 @@ function update_touchpad_circles(points) {
     // DS4/DS5 touchpad is 1920x943 units (raw values)
     const RAW_W = 1920, RAW_H = 943;
     const pointRadius = trackpadBbox.width * 0.05;
-    const cx = trackpadBbox.x + pointRadius + (pt.x / RAW_W) * (trackpadBbox.width - pointRadius*2);
-    const cy = trackpadBbox.y + pointRadius + (pt.y / RAW_H) * (trackpadBbox.height - pointRadius*2);
+    const cx = trackpadBbox.x + pointRadius + (pt.x / RAW_W) * (trackpadBbox.width - pointRadius * 2);
+    const cy = trackpadBbox.y + pointRadius + (pt.y / RAW_H) * (trackpadBbox.height - pointRadius * 2);
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('class', 'ds-touch');
     circle.setAttribute('cx', cx);
@@ -898,7 +895,7 @@ function detectFailedRangeCalibration(changes) {
   if (!changes.sticks || app.shownRangeCalibrationWarning) return;
 
   const { left, right } = changes.sticks;
-  const failedCalibration = [left, right].some(({x, y}) => Math.abs(x) + Math.abs(y) == 2);
+  const failedCalibration = [left, right].some(({ x, y }) => Math.abs(x) + Math.abs(y) == 2);
   const hasOpenModals = document.querySelectorAll('.modal.show').length > 0;
 
   if (failedCalibration && !app.shownRangeCalibrationWarning && !hasOpenModals) {
@@ -921,7 +918,7 @@ function handleControllerInput({ changes, inputConfig, touchPoints, batteryStatu
   switch (current_active_tab) {
     case 'controller-tab': // Main controller tab
       collectCircularityData(changes.sticks, ll_data, rr_data);
-      if(isFinetuneVisible()) {
+      if (isFinetuneVisible()) {
         finetune_handle_controller_input(changes);
       } else {
         update_stick_graphics(changes);
@@ -962,10 +959,10 @@ function handle_test_input(/* changes */) {
 
 function update_disable_btn() {
   const { disable_btn, last_disable_btn } = app;
-  if(disable_btn == last_disable_btn)
+  if (disable_btn == last_disable_btn)
     return;
 
-  if(disable_btn == 0) {
+  if (disable_btn == 0) {
     $(".ds-btn").prop("disabled", false);
     app.last_disable_btn = 0;
     return;
@@ -975,16 +972,16 @@ function update_disable_btn() {
   $(".ds-btn").not("#quick-test-btn").prop("disabled", true);
 
   // show only one popup
-  if(disable_btn & 1 && !(last_disable_btn & 1)) {
+  if (disable_btn & 1 && !(last_disable_btn & 1)) {
     show_popup(l("The device appears to be a clone. All calibration functionality is disabled."));
-  } else if(disable_btn & 2 && !(last_disable_btn & 2)) {
+  } else if (disable_btn & 2 && !(last_disable_btn & 2)) {
     show_popup(l("This DualSense controller has outdated firmware.") + "<br>" + l("Please update the firmware and try again."), true);
   }
   app.last_disable_btn = disable_btn;
 }
 
 async function handleLanguageChange() {
-  if(!controller) return;
+  if (!controller) return;
 
   const { infoItems } = await controller.getDeviceInfo();
   render_info_to_dom(infoItems);
@@ -1005,7 +1002,7 @@ async function flash_all_changes() {
   edgeProgressModal?.hide();
 
   if (result?.success) {
-    if(result.isHtml) {
+    if (result.isHtml) {
       show_popup(result.message, result.isHtml);
     } else {
       successAlert(result.message);
@@ -1038,24 +1035,24 @@ function render_info_to_dom(infoItems) {
   if (!Array.isArray(infoItems)) return;
 
   // Add new info items
-  infoItems.forEach(({key, value, addInfoIcon, severity, isExtra, cat}) => {
+  infoItems.forEach(({ key, value, addInfoIcon, severity, isExtra, cat }) => {
     if (!key) return;
 
     // Compose value with optional info icon
     let valueHtml = String(value ?? "");
     if (addInfoIcon === 'board') {
       const icon = '&nbsp;<a class="link-body-emphasis" href="#" onclick="board_model_info()">' +
-      '<svg class="bi" width="1.3em" height="1.3em"><use xlink:href="#info"/></svg></a>';
+        '<svg class="bi" width="1.3em" height="1.3em"><use xlink:href="#info"/></svg></a>';
       valueHtml += icon;
     } else if (addInfoIcon === 'color') {
       const icon = '&nbsp;<a class="link-body-emphasis" href="#" onclick="edge_color_info()">' +
-      '<svg class="bi" width="1.3em" height="1.3em"><use xlink:href="#info"/></svg></a>';
+        '<svg class="bi" width="1.3em" height="1.3em"><use xlink:href="#info"/></svg></a>';
       valueHtml += icon;
     }
 
     // Apply severity formatting if requested
     if (severity) {
-      const colors = { danger: 'red', success: 'green' }
+      const colors = { danger: 'red', success: 'green' };
       const color = colors[severity] || 'black';
       valueHtml = `<font color='${color}'><b>${valueHtml}</b></font>`;
     }
@@ -1074,7 +1071,6 @@ function append_info_extra(key, value, cat) {
   $("#fwinfoextra-" + cat).html($("#fwinfoextra-" + cat).html() + s);
 }
 
-
 function append_info(key, value, cat) {
   // TODO escape html
   const s = '<dt class="text-muted col-6">' + key + '</dt><dd class="col-6" style="text-align: right;">' + value + '</dd>';
@@ -1083,7 +1079,7 @@ function append_info(key, value, cat) {
 }
 
 function show_popup(text, is_html = false) {
-  if(is_html) {
+  if (is_html) {
     $("#popupBody").html(text);
   } else {
     $("#popupBody").text(text);
@@ -1150,8 +1146,8 @@ let alertCounter = 0;
 function pushAlert(message, type = 'info', duration = 0, dismissible = true) {
   const alertContainer = document.getElementById('alert-container');
   if (!alertContainer) {
-  console.error('Alert container not found');
-  return null;
+    console.error('Alert container not found');
+    return null;
   }
 
   const alertId = `alert-${++alertCounter}`;
@@ -1224,7 +1220,7 @@ window.calibrate_range = () => calibrate_range(
       resetStickDiagrams();
       successAlert(message);
       switchToRangeMode();
-      app.shownRangeCalibrationWarning = false
+      app.shownRangeCalibrationWarning = false;
     }
   }
 );
