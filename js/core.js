@@ -114,6 +114,9 @@ function gboot() {
     $('#edgeModalDontShowAgain').on('change', function() {
       localStorage.setItem('edgeModalDontShowAgain', this.checked.toString());
     });
+
+    // Try to auto-connect to any previously authorised controller
+    autoConnectIfAllowed();
   }
 
   // Since modules are deferred, DOM might already be loaded
@@ -135,7 +138,83 @@ function gboot() {
   navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
 }
 
+/**
+ * Attempt to auto-connect to a previously authorised HID controller
+ * without showing the device chooser dialog.
+ *
+ * This only works if:
+ *  - The browser supports WebHID
+ *  - The user has already granted permission for this origin + device
+ *  - The controller is currently connected
+ */
+async function autoConnectIfAllowed() {
+  if (!("hid" in navigator)) {
+    return;
+  }
+
+  // If we're already connected, don't do anything
+  if (controller && typeof controller.isConnected === 'function' && controller.isConnected()) {
+    return;
+  }
+
+  try {
+    const supportedModels = ControllerFactory.getSupportedModels();
+
+    // Get devices the origin is already allowed to talk to
+    let devices = await navigator.hid.getDevices();
+
+    // Filter to only devices we know how to handle
+    devices = devices.filter(d =>
+      supportedModels.some(f => f.vendorId === d.vendorId && f.productId === d.productId)
+    );
+
+    if (devices.length === 0) {
+      // Nothing previously authorised – totally normal on first use
+      return;
+    }
+
+    // Prepare analytics + controller manager
+    app.gj = crypto.randomUUID();
+    initAnalyticsApi(app); // init with gu and gj
+
+    controller = initControllerManager({ handleNvStatusUpdate });
+    controller.setInputHandler(handleControllerInput);
+
+    la("begin");
+    reset_circularity_mode();
+    clearAllAlerts();
+    await sleep(200);
+
+    if (devices.length > 1) {
+      console.log("Multiple pre-authorised controllers found, using the first one.");
+    }
+
+    const [device] = devices;
+
+    if (device.opened) {
+      console.log("Auto-connect: device already opened, closing before re-opening.");
+      await device.close();
+      await sleep(500);
+    }
+
+    await device.open();
+    la("connect", { p: device.productId, v: device.vendorId });
+
+    // Re-use the existing flow – continue_connection will finish setup
+    device.oninputreport = continue_connection;
+  } catch (error) {
+    console.error("Auto-connect failed:", error);
+    // If anything explodes, just fall back to the manual connect button
+    await disconnect();
+  }
+}
+
 async function connect() {
+  // If we're already connected, don't attempt another connection
+  if (controller && typeof controller.isConnected === 'function' && controller.isConnected()) {
+    return;
+  }
+
   app.gj = crypto.randomUUID();
   initAnalyticsApi(app); // init with gu and jg
 
@@ -155,10 +234,18 @@ async function connect() {
 
     const supportedModels = ControllerFactory.getSupportedModels();
     const requestParams = { filters: supportedModels };
-    let devices = await navigator.hid.getDevices(); // Already connected?
+
+    // Try already-authorised devices first
+    let devices = await navigator.hid.getDevices();
+    devices = devices.filter(d =>
+      supportedModels.some(f => f.vendorId === d.vendorId && f.productId === d.productId)
+    );
+
+    // If none, fall back to the chooser dialog
     if (devices.length == 0) {
       devices = await navigator.hid.requestDevice(requestParams);
     }
+
     if (devices.length == 0) {
       $("#btnconnect").prop("disabled", false);
       $("#connectspinner").hide();
@@ -175,16 +262,16 @@ async function connect() {
     }
 
     const [device] = devices;
-    if(device.opened) {
+    if (device.opened) {
       console.log("Device already opened, closing it before re-opening.");
       await device.close();
       await sleep(500);
     }
     await device.open();
 
-    la("connect", {"p": device.productId, "v": device.vendorId});
+    la("connect", { p: device.productId, v: device.vendorId });
     device.oninputreport = continue_connection; // continue below
-  } catch(error) {
+  } catch (error) {
     $("#btnconnect").prop("disabled", false);
     $("#connectspinner").hide();
     await disconnect();
@@ -236,7 +323,7 @@ async function continue_connection({data, device}) {
       const contextMessage = device 
         ? `${l("Connected invalid device")}: ${dec2hex(device.vendorId)}:${dec2hex(device.productId)}`
         : l("Failed to connect to device");
-        throw new Error(contextMessage, { cause: error });
+      throw new Error(contextMessage, { cause: error });
     }
 
     if(!info?.ok) {
@@ -262,7 +349,7 @@ async function continue_connection({data, device}) {
     $("#resetBtn").show();
 
     $("#d-nvstatus").text = l("Unknown");
-    $("#d-bdaddr").text = l("Unknown");
+    $("#d-bat").text = "";
 
     $('#controller-tab').tab('show');
 
@@ -1056,11 +1143,6 @@ function warningAlert(message, duration = 8_000) {
 function infoAlert(message, duration = 5_000) {
   return pushAlert(message, 'info', duration, false);
 }
-
-
-
-
-
 
 // Export functions to global scope for HTML onclick handlers
 window.gboot = gboot;
