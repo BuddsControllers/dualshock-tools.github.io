@@ -269,7 +269,7 @@ async function connect() {
   }
 
   app.gj = crypto.randomUUID();
-  initAnalyticsApi(app); // init with gu and jg
+  initAnalyticsApi(app); // init with gu and gj
 
   // Initialize controller manager with translation function
   controller = initControllerManager({ handleNvStatusUpdate });
@@ -286,27 +286,39 @@ async function connect() {
     await sleep(100);
 
     const supportedModels = ControllerFactory.getSupportedModels();
+
+    const isSupportedId = (d) =>
+      supportedModels.some(f => f.vendorId === d.vendorId && f.productId === d.productId);
+
+    const hasGamepadUsage = (d) =>
+      Array.isArray(d.collections) &&
+      d.collections.some(c =>
+        c.usagePage === 0x01 && (c.usage === 0x05 || c.usage === 0x04)
+      );
+
+    const filterToGamepads = (list) =>
+      list.filter(d => isSupportedId(d) || hasGamepadUsage(d));
+
     const requestParams = { filters: supportedModels };
 
-    // Try already-authorised devices first
+    // Try already-authorised devices first, then prune to gamepads
     let devices = await navigator.hid.getDevices();
-    devices = devices.filter(d =>
-      supportedModels.some(f => f.vendorId === d.vendorId && f.productId === d.productId)
-    );
+    devices = filterToGamepads(devices);
 
-    // If none, fall back to the chooser dialog
-    if (devices.length == 0) {
+    // If none, fall back to chooser dialog, then prune again
+    if (devices.length === 0) {
       devices = await navigator.hid.requestDevice(requestParams);
+      devices = filterToGamepads(devices);
     }
 
-    if (devices.length == 0) {
+    if (devices.length === 0) {
       $("#btnconnect").prop("disabled", false);
       $("#connectspinner").hide();
       await disconnect();
       return;
     }
 
-    if (devices.length > 1) { //mm: this should never happen
+    if (devices.length > 1) { // this should basically never happen now
       infoAlert(l("Please connect only one controller at time."));
       $("#btnconnect").prop("disabled", false);
       $("#connectspinner").hide();
@@ -331,6 +343,7 @@ async function connect() {
     throw error;
   }
 }
+
 
 async function continue_connection({data, device}) {
   try {
