@@ -40,6 +40,9 @@ const rr_data = new Array(CIRCULARITY_DATA_SIZE);
 
 let controller = null;
 
+// --- gamepad -> "press X to connect" state ---
+let lastGamepadXPressed = false;
+
 function gboot() {
   app.gu = crypto.randomUUID();
 
@@ -60,7 +63,7 @@ function gboot() {
         if (event.reason.message) {
           errorMessage = `<strong>Error:</strong> ${event.reason.message}`;
         } else if (typeof event.reason === 'string') {
-          errorMessage = `<strong>Error:</strong> ${event.reason}`;
+          errorMessage = `<strong>Error:</strong> ${event.reason}</strong>`;
         }
 
         // Collect all stack traces (main error and causes) for a single expandable section
@@ -117,6 +120,9 @@ function gboot() {
 
     // Try to auto-connect to any previously authorised controller
     autoConnectIfAllowed();
+
+    // Start listening for "press X to connect" using the Gamepad API
+    startGamepadConnectListener();
   }
 
   // Since modules are deferred, DOM might already be loaded
@@ -136,6 +142,53 @@ function gboot() {
 
   $("#offlinebar").show();
   navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+}
+
+/**
+ * Gamepad-loop:
+ * While the "Connect" UI is visible, a press of the X / Cross button
+ * (standard mapping index 0) will call connect().
+ */
+function startGamepadConnectListener() {
+  if (!('getGamepads' in navigator)) {
+    return;
+  }
+
+  function pollGamepads() {
+    try {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let xPressedNow = false;
+
+      for (const pad of pads) {
+        if (!pad) continue;
+        // Standard mapping: index 0 is A / Cross / Bottom button
+        const btn = pad.buttons && pad.buttons[0];
+        if (btn && btn.pressed) {
+          xPressedNow = true;
+          break;
+        }
+      }
+
+      // Rising edge: just pressed this frame
+      if (xPressedNow && !lastGamepadXPressed) {
+        const offlineVisible = $("#offlinebar").is(":visible");
+        const alreadyConnected = controller && typeof controller.isConnected === 'function' && controller.isConnected();
+
+        if (offlineVisible && !alreadyConnected) {
+          // Fire connect; no need to await here
+          connect().catch(e => console.error("Gamepad X-to-connect failed:", e));
+        }
+      }
+
+      lastGamepadXPressed = xPressedNow;
+    } catch (e) {
+      console.error("Error in gamepad polling loop:", e);
+    }
+
+    requestAnimationFrame(pollGamepads);
+  }
+
+  requestAnimationFrame(pollGamepads);
 }
 
 /**
