@@ -289,25 +289,16 @@ async function connect() {
     const isSupportedId = (d) =>
       supportedModels.some(f => f.vendorId === d.vendorId && f.productId === d.productId);
 
-    const hasGamepadUsage = (d) =>
-      Array.isArray(d.collections) &&
-      d.collections.some(c =>
-        c.usagePage === 0x01 && (c.usage === 0x05 || c.usage === 0x04) // Game Pad / Joystick
-      );
-
-    const filterToGamepads = (list) =>
-      list.filter(d => isSupportedId(d) || hasGamepadUsage(d));
-
     const requestParams = { filters: supportedModels };
 
-    // Try already-authorised devices first, then prune to gamepads
+    // Try already-authorised devices first
     let devices = await navigator.hid.getDevices();
-    devices = filterToGamepads(devices);
+    devices = devices.filter(isSupportedId);
 
-    // If none, fall back to chooser dialog, then prune again
+    // If none, fall back to chooser dialog
     if (devices.length === 0) {
       devices = await navigator.hid.requestDevice(requestParams);
-      devices = filterToGamepads(devices);
+      devices = devices.filter(isSupportedId);
     }
 
     if (devices.length === 0) {
@@ -317,7 +308,7 @@ async function connect() {
       return;
     }
 
-    if (devices.length > 1) { // this should basically never happen now
+    if (devices.length > 1) {
       infoAlert(l("Please connect only one controller at time."));
       $("#btnconnect").prop("disabled", false);
       $("#connectspinner").hide();
@@ -342,6 +333,7 @@ async function connect() {
     throw error;
   }
 }
+
 
 async function continue_connection({ data, device }) {
   try {
@@ -1263,6 +1255,9 @@ window.show_quick_test_modal = () => {
     throw new Error("Failed to show quick test modal", { cause: error });
   });
 };
+
+// Make controller factory available to non-module scripts (xp-input.js)
+window.ControllerFactory = ControllerFactory;
 
 // Auto-initialize the application when the module loads
 gboot();
